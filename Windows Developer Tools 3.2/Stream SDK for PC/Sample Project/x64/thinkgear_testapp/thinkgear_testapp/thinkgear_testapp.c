@@ -6,6 +6,8 @@
 
 /**
  * Prompts and waits for the user to press ENTER.
+ * 사용자가 ENTER 키를 누를 때까지 대기하는 함수
+ * 반환값: 없음
  */
 void
 wait() {
@@ -17,6 +19,9 @@ wait() {
 
 /**
  * Program which prints ThinkGear Raw Wave Values to stdout.
+ * ThinkGear SDK를 사용하여 뇌파 헤드셋에서 데이터를 수신하는 메인 프로그램
+ * 목적: Stream SDK를 사용하여 뇌파 신호를 읽고 처리하는 방법을 보여줌
+ * 반환값: 성공시 EXIT_SUCCESS, 실패시 EXIT_FAILURE
  */
 int
 main( void ) {
@@ -34,11 +39,11 @@ main( void ) {
 	int set_filter_flag = 0;
 	int count = 0;
     
-    /* Print driver version number */
+    /* SDK 버전 확인 - Stream SDK의 버전 정보를 가져옴 */
     dllVersion = TG_GetVersion();
     printf( "Stream SDK for PC version: %d\n", dllVersion );
     
-    /* Get a connection ID handle to ThinkGear */
+    /* 새 연결 ID 생성 - 헤드셋과 통신하기 위한 고유한 연결 ID 할당 */
     connectionId = TG_GetNewConnectionId();
     if( connectionId < 0 ) {
         fprintf( stderr, "ERROR: TG_GetNewConnectionId() returned %d.\n",
@@ -47,7 +52,7 @@ main( void ) {
         exit( EXIT_FAILURE );
     }
     
-    /* Set/open stream (raw bytes) log file for connection */
+    /* 뇌파 신호를 파일에 기록 - 원본 바이트 스트림 데이터를 streamLog.txt 파일에 저장 */
     errCode = TG_SetStreamLog( connectionId, "streamLog.txt" );
     if( errCode < 0 ) {
         fprintf( stderr, "ERROR: TG_SetStreamLog() returned %d.\n", errCode );
@@ -55,7 +60,7 @@ main( void ) {
         exit( EXIT_FAILURE );
     }
     
-    /* Set/open data (ThinkGear values) log file for connection */
+    /* 데이터 로그 파일 설정 - ThinkGear 값 데이터를 dataLog.txt 파일에 저장 */
     errCode = TG_SetDataLog( connectionId, "dataLog.txt" );
     if( errCode < 0 ) {
         fprintf( stderr, "ERROR: TG_SetDataLog() returned %d.\n", errCode );
@@ -71,6 +76,7 @@ main( void ) {
      *       "/dev/tty.MindSet-DevB-1".
      */
     comPortName = "\\\\.\\COM40";
+    /* 헤드셋에 연결 - 지정된 COM 포트를 통해 뇌파 헤드셋과 연결 수립 */
     errCode = TG_Connect( connectionId,
                          comPortName,
                          TG_BAUD_57600,
@@ -86,23 +92,23 @@ main( void ) {
     startTime = time( NULL );
     while( difftime(time(NULL), startTime) < secondsToRun ) {
         
-        /* Read all currently available Packets, one at a time... */
+        /* 뇌파 데이터 수신 - 연결에서 이용 가능한 모든 패킷을 읽음 */
         do {
             
-            /* Read a single Packet from the connection */
+            /* 뇌파 데이터 수신 - 연결에서 한 개의 패킷 읽기 */
             packetsRead = TG_ReadPackets( connectionId, 1 );
             
             /* If TG_ReadPackets() was able to read a Packet of data... */
             if( packetsRead == 1 ) {
                 
-                /* If the Packet containted a new raw wave value... */
+                /* 데이터 업데이트 확인 - 새로운 뇌파 신호 값이 업데이트되었는지 확인 */
                 if( TG_GetValueStatus(connectionId, TG_DATA_RAW) != 0 ) {
                     
                     /* Get the current time as a string */
                     currTime = time( NULL );
         			currTimeStr = ctime( &currTime );
                     
-                    /* Get and print out the new raw value */
+                    /* 데이터 값 추출 - 뇌파 신호 값을 읽어서 출력 */
                     fprintf( stdout, "%s: raw: %d\n", currTimeStr,
                             (int)TG_GetValue(connectionId, TG_DATA_RAW) );
                     fflush( stdout );
@@ -115,6 +121,7 @@ main( void ) {
         
     } /* end "Keep reading ThinkGear Packets for 5 seconds..." */
 
+	/* 자동 모드로 데이터 수신 - 자동 읽기 모드를 활성화하여 지속적으로 데이터 수신 */
 	printf("auto read test begin:\n");
 	fflush(stdin);
 	errCode = TG_EnableAutoRead(connectionId,1);
@@ -160,15 +167,17 @@ main( void ) {
              
 		}
 
-		errCode = TG_EnableAutoRead(connectionId,0); //stop
+		/* 자동 읽기 모드 중지 */
+		errCode = TG_EnableAutoRead(connectionId,0);
 		printf("auto read test stoped: %d \n",errCode);
 	}else{
 		printf("auto read test failed: %d \n",errCode);
 	}
 
-	TG_Disconnect(connectionId); // disconnect test
+	/* 연결 종료 및 정리 - 헤드셋과의 연결 종료 */
+	TG_Disconnect(connectionId);
     
-    /* Clean up */
+    /* 메모리 정리 - 연결 ID 관련 리소스 해제 */
     TG_FreeConnection( connectionId );
     
     /* End program */
